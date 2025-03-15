@@ -1,0 +1,118 @@
+# Predicting Semantic Distinctions of Green and Blue in World Languages: predictive modelling of the # WALS 134A feature using decision trees
+
+
+# a. Selection of a linguistic feature of interest and construction of alternative 
+# hypotheses about what other linguistic features might predict its occurrence in a 
+# given language
+
+For this project the WALS feature 134A (Green and Blue) was selected which shows the encoding of Green and Blue in 120 languages (“/” indicates fuzzy union): 
+
+- Green and blue: Green and blue each gets a basic colour term
+- Green/blue: A green-or-blue category get a basic colour term
+- Black/green/blue: A black-or-green-or-blue category gets a basic colour term
+- Black/blue vs. green: A black-or-blue category gets a basic colour term and green gets a separate basic colour term
+- Yellow/green/blue: A yellow-or-green-or-blue category gets a basic colour term
+- Yellow/green vs. blue: A yellow-or-green category gets a basic color term and blue gets a separate basic colour term
+- Green and blue not both encoded in any basic colour term
+
+It is hypothesized that the features 132A	(Number of Non-Derived Basic Colour Categories) and  133A	(Number of Basic Colour Categories) predict the occurrence of separate words for Green and Blue in languages. The higher the amount of colour categories, the more likely it is that Green and Blue are expressed in a separate colour term each. 132A refers to the basic colour categories, that is Black, White, Red, Yellow, Green and Blue. 133A is similar to 132A but 133A includes also derived colour categories and the values of this feature is expressed in ranges of up to more than 10 categories.
+
+
+#b. Construction of three predictive models to predict the selected linguistic 
+# feature's value based on the relevant predictor variables identified in the step before
+
+# Load required packages
+```{r}
+library(rpart)
+library(rpart.plot)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
+```
+
+# Load and filter relevant WALS features
+```{r}
+data <- read.csv(file.choose(), header = TRUE)
+
+data_filt <- data %>%
+  group_by(Language_name) %>%
+  filter(Parameter_name %in% c('Number of Non-Derived Basic Colour Categories', 'Number of Basic Colour Categories', 'Green and Blue')) %>%
+  transmute(Parameter_name, Value) %>%
+  spread(Parameter_name, Value) %>%
+```
+
+# Abbreviate columns
+```{r}
+rename(
+    Language = `Language_name`, 
+    NonDerived_Col = `Number of Non-Derived Basic Colour Categories`,  
+    Basic_Col = `Number of Basic Colour Categories`, 
+    Green_Blue = `Green and Blue`
+  )
+data_filt
+```
+
+
+# Abbreviate values
+```{r}
+data_filt <- data_filt %>%
+  mutate(
+    Green_Blue = recode(Green_Blue,
+      "Green and blue" = "G & Blu",
+      "Green/blue" = "G/Blu",
+      "Black/green/blue" = "Bla/G/Blu",
+      "Black/blue vs. green" = "Bla/Blu vs G",
+      "Yellow/green/blue" = "Y/G/Blu",
+      "Yellow/green vs. blue" = "Y/G vs Blu",
+      "Green and blue not both encoded in any basic colour term" = "None"
+    ) 
+  )
+```
+# Convert relevant columns to character type
+```{r}
+data_filt$Green_Blue <- as.character(data_filt$Green_Blue)
+data_filt$Basic_Col <- as.character(data_filt$Basic_Col)
+data_filt$NonDerived_Col <- as.character(data_filt$NonDerived_Col)
+```
+
+# Build decision tree 1:  Green_Blue ~ Basic Colour Categories
+```{r}
+tree_basic_colours <- rpart(Green_Blue ~ Basic_Col, data = data_filt)
+summary(tree_basic_colours)
+rpart.plot(tree_basic_colours)
+tree_basic_colours
+```
+
+# Build decision tree 2:  Green_Blue ~ Non-Derived Colour Categories
+```{r}
+tree_nonderived_colours <- rpart(Green_Blue ~ NonDerived_Col, data = data_filt)
+summary(tree_nonderived_colours)
+rpart.plot(tree_nonderived_colours)
+tree_nonderived_colours
+```
+# Build decision tree 3:  Combination of Green_Blue ~ Basic Colour Categories and Green_Blue ~ Non-Derived Colour Categories
+```{r}
+tree_combined <- rpart(Green_Blue ~ Basic_Col + NonDerived_Col, data = data_filt)
+summary(tree_combined)
+rpart.plot(tree_combined)
+tree_combined
+```
+
+
+#c. Comparison of the models and summary of models predictions regarding the
+# relationship between the grammatical parameters under investigation
+
+Tree 1 shows the relationship between the feature "Green and Blue" and the Number of Basic Colour Categories, Tree 2 the relationship between Green and Blue and the Number of Non-Derived Basic Categories. Tree 3 takes all features into account. 
+The values "Black/blue vs green", "Yellow/Green vs. blue", "Yellow/green/blue" and "none" do not appear in any of the decision trees. 
+
+Tree 1 indicates that for the entire range of basic colour categories, 84% of the investigated languages have a green-or-blue category which is assigned a single basic colour term and 16% have a separate colour term for each green and blue. For those languages whose inventory of basic colour categories is relatively small (3-4), 17% have a colour term for a black-or-green-or-blue category and 67% have a term for a
+green-or-blue category. 
+
+Trees 2 and 3 have identical values and indicate that for the entire range of non-derived basic-colour categores, 24% of the investigated languages have a separate colour term for blue and green and the remaining 76% do not have such a semantic distinction. Once again, if the amount of colour categories is relatively small (3 - 4.5) 19% of the languages have a colour term for a  black-or-green-or-blue category and 56% of the languages use one basic colour term for Green/Blue. 
+
+All three trees suggest that if the range of colour categories (basic or non-derived) is at the lower end, it is highly unlikely that this language has two separate terms for green and blue. These finding are in line with the initial hypothesis in that the number of colour categories predicts the likelihood of the occurrence of a semantic distinction between green and blue. 
+
+
+
+
